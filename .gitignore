@@ -1,0 +1,4 @@
+/target
+.DS_Store
+mcp_server.log
+claude_config.json
