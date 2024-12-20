@@ -1,7 +1,7 @@
+use crate::schema::{CallToolResult, TextContent};
 use crate::tools::{ToolDef, ToolError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct EchoProperties {
@@ -17,8 +17,16 @@ impl ToolDef for Echo {
     const DESCRIPTION: &'static str = "Echoes back the input message";
     type Properties = EchoProperties;
 
-    fn call(&self, properties: Self::Properties) -> Result<Value, ToolError> {
-        serde_json::to_value(properties.message).map_err(ToolError::ResultSerialize)
+    fn call(&self, properties: Self::Properties) -> Result<CallToolResult, ToolError> {
+        Ok(CallToolResult {
+            content: vec![serde_json::to_value(TextContent {
+                type_: "text".to_string(),
+                text: properties.message,
+                annotations: None,
+            }).map_err(ToolError::ResultSerialize)?],
+            is_error: Some(false),
+            meta: None,
+        })
     }
 }
 
@@ -33,15 +41,17 @@ mod tests {
         let props = EchoProperties {
             message: "hello".to_string(),
         };
+        
         let result = ToolDef::call(&tool, props).unwrap();
-        assert_eq!(result.as_str().unwrap(), "hello");
+        assert_eq!(result.content[0]["text"].as_str().unwrap(), "hello");
+        assert_eq!(result.is_error, Some(false));
     }
 
     #[test]
     fn test_echo_schema() {
         let tool = Echo.def();
         assert_eq!(tool.name, "echo");
-        assert_eq!(tool.description.unwrap(), "Echoes back the input");
+        assert_eq!(tool.description.unwrap(), "Echoes back the input message");
 
         let schema = tool.input_schema;
         assert_eq!(schema.type_, "object");

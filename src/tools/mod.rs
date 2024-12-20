@@ -1,4 +1,4 @@
-use crate::schema::{self, ToolInputSchema};
+use crate::schema::{self, CallToolResult, ToolInputSchema};
 use schemars::{schema_for, JsonSchema};
 use serde::Serialize;
 use serde_json::Value;
@@ -19,7 +19,7 @@ pub enum ToolError {
 }
 
 pub trait ToolCallHandler: Send + Sync {
-    fn call(&self, args: Value) -> Result<Value, ToolError>;
+    fn call(&self, args: Option<BTreeMap<String, Value>>) -> Result<CallToolResult, ToolError>;
     fn def(&self) -> schema::Tool;
 }
 
@@ -66,12 +66,19 @@ pub trait ToolDef: Serialize {
         }
     }
 
-    fn call(&self, properties: Self::Properties) -> Result<Value, ToolError>;
+    fn call(&self, properties: Self::Properties) -> Result<CallToolResult, ToolError>;
 }
 
 impl<T: ToolDef + Send + Sync> ToolCallHandler for T {
-    fn call(&self, args: Value) -> Result<Value, ToolError> {
-        let properties = serde_json::from_value(args).map_err(ToolError::ArgumentParse)?;
+    fn call(&self, args: Option<BTreeMap<String, Value>>) -> Result<CallToolResult, ToolError> {
+        let value = match args {
+            Some(map) => serde_json::to_value(map).map_err(ToolError::ArgumentParse)?,
+            None => Value::Null,
+        };
+
+        let properties: T::Properties =
+            serde_json::from_value(value).map_err(ToolError::ArgumentParse)?;
+
         self.call(properties)
     }
 
