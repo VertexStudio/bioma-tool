@@ -3,6 +3,8 @@ use schemars::{schema_for, JsonSchema};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
+use std::future::Future;
+use std::pin::Pin;
 
 pub mod echo;
 
@@ -19,7 +21,11 @@ pub enum ToolError {
 }
 
 pub trait ToolCallHandler: Send + Sync {
-    fn call(&self, args: Option<BTreeMap<String, Value>>) -> Result<CallToolResult, ToolError>;
+    fn call_boxed<'a>(
+        &'a self,
+        args: Option<BTreeMap<String, Value>>,
+    ) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ToolError>> + Send + 'a>>;
+
     fn def(&self) -> schema::Tool;
 }
 
@@ -66,20 +72,28 @@ pub trait ToolDef: Serialize {
         }
     }
 
-    fn call(&self, properties: Self::Properties) -> Result<CallToolResult, ToolError>;
+    fn call<'a>(
+        &'a self,
+        properties: Self::Properties,
+    ) -> impl Future<Output = Result<CallToolResult, ToolError>> + Send + 'a;
 }
 
 impl<T: ToolDef + Send + Sync> ToolCallHandler for T {
-    fn call(&self, args: Option<BTreeMap<String, Value>>) -> Result<CallToolResult, ToolError> {
-        let value = match args {
-            Some(map) => serde_json::to_value(map).map_err(ToolError::ArgumentParse)?,
-            None => Value::Null,
-        };
+    fn call_boxed<'a>(
+        &'a self,
+        args: Option<BTreeMap<String, Value>>,
+    ) -> Pin<Box<dyn Future<Output = Result<CallToolResult, ToolError>> + Send + 'a>> {
+        Box::pin(async move {
+            let value = match args {
+                Some(map) => serde_json::to_value(map).map_err(ToolError::ArgumentParse)?,
+                None => Value::Null,
+            };
 
-        let properties: T::Properties =
-            serde_json::from_value(value).map_err(ToolError::ArgumentParse)?;
+            let properties: T::Properties =
+                serde_json::from_value(value).map_err(ToolError::ArgumentParse)?;
 
-        self.call(properties)
+            self.call(properties).await
+        })
     }
 
     fn def(&self) -> schema::Tool {

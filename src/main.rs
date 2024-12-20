@@ -259,7 +259,7 @@ pub async fn start_server(mut transport: TransportType) -> Result<()> {
 
             match tool {
                 Some(tool) => {
-                    let result = tool.call(params.arguments).map_err(|e| {
+                    let result = tool.call_boxed(params.arguments).await.map_err(|e| {
                         error!("Tool execution failed: {}", e);
                         jsonrpc_core::Error::internal_error()
                     })?;
