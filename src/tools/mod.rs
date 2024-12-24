@@ -6,7 +6,7 @@ use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
 
-/// Module containing tool implementations, starting with the echo tool
+/// Modules containing tool implementations
 pub mod echo;
 
 /// Errors that can occur during tool operations
@@ -50,6 +50,39 @@ pub trait ToolCallHandler: Send + Sync {
 ///
 /// This trait provides a way to define a tool's metadata and implementation
 /// with strongly-typed arguments.
+///
+/// # JSON Schema Properties
+/// 
+/// The `schemars` crate supports standard JSON Schema attributes through the `schemars` attribute macro.
+/// See the [JSON Schema Reference](https://json-schema.org/understanding-json-schema) for full documentation.
+///
+/// Common attributes include:
+/// ```rust
+/// #[derive(JsonSchema, Serialize, Deserialize)]
+/// struct ExampleProperties {
+///     #[schemars(description = "Description of the field")]
+///     #[schemars(required = true)]
+///     basic_field: String,
+///
+///     #[schemars(minimum = 0, maximum = 100)]
+///     #[schemars(example = 42)]
+///     number_field: i32,
+///
+///     #[schemars(regex = "^[a-zA-Z]+$")]
+///     #[schemars(length(min = 1, max = 50))]
+///     string_field: String,
+///
+///     #[schemars(default = true)]
+///     optional_field: bool,
+///
+///     #[schemars(enum_values = ["one", "two", "three"])]
+///     enum_field: String,
+/// }
+/// ```
+///
+/// Additional resources:
+/// - [schemars documentation](https://docs.rs/schemars)
+/// - [JSON Schema Validation](https://json-schema.org/draft/2020-12/json-schema-validation.html)
 pub trait ToolDef: Serialize {
     /// The name of the tool
     const NAME: &'static str;
