@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use futures::{SinkExt, StreamExt};
-use log::{debug, error};
+use tracing::{debug, error};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;

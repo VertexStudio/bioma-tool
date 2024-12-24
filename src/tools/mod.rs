@@ -8,6 +8,7 @@ use std::pin::Pin;
 
 /// Modules containing tool implementations
 pub mod echo;
+pub mod memory;
 
 /// Errors that can occur during tool operations
 #[derive(Debug, thiserror::Error)]
@@ -101,31 +102,81 @@ pub trait ToolDef: Serialize {
         let schema = schema_for!(Self::Properties);
         let schema_value = serde_json::to_value(schema).unwrap();
 
-        let tool_input_schema = ToolInputSchema {
-            type_: schema_value["type"]
-                .as_str()
-                .unwrap_or("object")
-                .to_string(),
-            properties: schema_value["properties"].as_object().map(|props| {
-                props
-                    .iter()
-                    .map(|(prop_name, prop_value)| {
-                        let inner_map = prop_value
-                            .as_object()
-                            .unwrap() // Safe because JsonSchema generates valid objects
-                            .iter()
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect::<BTreeMap<String, Value>>();
+        let tool_input_schema = if let Some(_discriminator) = schema_value.get("discriminator") {
+            // Handle tagged enum case
+            let variants = schema_value["oneOf"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|variant| {
+                    let properties: BTreeMap<String, BTreeMap<String, Value>> = variant["properties"]
+                        .as_object()
+                        .unwrap()
+                        .iter()
+                        .map(|(prop_name, prop_value)| {
+                            let inner_map: BTreeMap<String, Value> = prop_value
+                                .as_object()
+                                .unwrap()
+                                .iter()
+                                .map(|(k, v)| (k.clone(), v.clone()))
+                                .collect();
+                            (prop_name.clone(), inner_map)
+                        })
+                        .collect();
 
-                        (prop_name.clone(), inner_map)
-                    })
-                    .collect::<BTreeMap<String, BTreeMap<String, Value>>>()
-            }),
-            required: schema_value["required"].as_array().map(|arr| {
-                arr.iter()
-                    .filter_map(|v| v.as_str().map(String::from))
-                    .collect::<Vec<String>>()
-            }),
+                    let required: Option<Vec<String>> = variant["required"]
+                        .as_array()
+                        .map(|arr| {
+                            arr.iter()
+                                .filter_map(|v| v.as_str().map(String::from))
+                                .collect()
+                        });
+
+                    (properties, required)
+                })
+                .fold(
+                    (BTreeMap::new(), Vec::new()),
+                    |(mut props, mut reqs), (variant_props, variant_reqs)| {
+                        props.extend(variant_props);
+                        if let Some(variant_reqs) = variant_reqs {
+                            reqs.extend(variant_reqs);
+                        }
+                        (props, reqs)
+                    },
+                );
+
+            ToolInputSchema {
+                type_: "object".to_string(),
+                properties: Some(variants.0),
+                required: Some(variants.1),
+            }
+        } else {
+            // Original handling for regular objects
+            ToolInputSchema {
+                type_: schema_value["type"]
+                    .as_str()
+                    .unwrap_or("object")
+                    .to_string(),
+                properties: schema_value["properties"].as_object().map(|props| {
+                    props
+                        .iter()
+                        .map(|(prop_name, prop_value)| {
+                            let inner_map = prop_value
+                                .as_object()
+                                .unwrap()
+                                .iter()
+                                .map(|(k, v)| (k.clone(), v.clone()))
+                                .collect();
+                            (prop_name.clone(), inner_map)
+                        })
+                        .collect()
+                }),
+                required: schema_value["required"].as_array().map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                }),
+            }
         };
 
         schema::Tool {

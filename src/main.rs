@@ -1,16 +1,13 @@
 use anyhow::{Context, Result};
 use clap::Parser;
 use jsonrpc_core::{MetaIoHandler, Metadata, Params};
-use log::{debug, error, info, LevelFilter};
-use log4rs::{
-    append::file::FileAppender,
-    config::{Appender, Config, Root},
-    encode::pattern::PatternEncoder,
-};
 use serde::Serialize;
 use std::path::PathBuf;
 use tokio::sync::mpsc;
 use tools::ToolCallHandler;
+use tracing::{debug, error, info, Level};
+use tracing_appender::rolling::{RollingFileAppender, Rotation};
+use tracing_subscriber::fmt::format::FmtSpan;
 use transport::{StdioTransport, Transport, TransportType, WebSocketTransport};
 
 pub mod schema;
@@ -67,7 +64,7 @@ impl McpServer {
         };
 
         Self {
-            tools: vec![Box::new(tools::echo::Echo)],
+            tools: vec![Box::new(tools::echo::Echo), Box::new(tools::memory::Memory)],
             resources: vec![example_resource],
             prompts: vec![example_prompt],
         }
@@ -101,19 +98,25 @@ fn setup_logging(log_path: PathBuf) -> Result<()> {
     }
 
     // Create file appender
-    let file_appender = FileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new("{d} - {l} - {m}{n}")))
-        .build(log_path)
-        .context("Failed to create log file appender")?;
+    let file_appender = RollingFileAppender::new(
+        Rotation::NEVER,
+        log_path.parent().unwrap_or(&PathBuf::from(".")),
+        log_path.file_name().unwrap_or_default(),
+    );
 
-    // Build logging configuration
-    let config = Config::builder()
-        .appender(Appender::builder().build("file", Box::new(file_appender)))
-        .build(Root::builder().appender("file").build(LevelFilter::Debug))
-        .context("Failed to build logging config")?;
-
-    // Initialize logging
-    log4rs::init_config(config).context("Failed to initialize logging")?;
+    // Initialize tracing subscriber with cleaner formatting
+    tracing_subscriber::fmt()
+        .with_timer(tracing_subscriber::fmt::time::UtcTime::rfc_3339())
+        .with_level(true)
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_file(true)
+        .with_line_number(true)
+        .with_ansi(false)  // Disable ANSI color codes
+        .with_span_events(FmtSpan::CLOSE)
+        .with_writer(file_appender)
+        .with_max_level(Level::DEBUG)
+        .init();
 
     info!("Logging system initialized");
     Ok(())
