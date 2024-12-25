@@ -3,7 +3,7 @@ use crate::tools::{ToolDef, ToolError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub const BROWSE_SCHEMA: &str = r#"{
+pub const WEB_BROWSER_SCHEMA: &str = r#"{
     "type": "object",
     "properties": {
         "url": {
@@ -15,21 +15,21 @@ pub const BROWSE_SCHEMA: &str = r#"{
 }"#;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
-pub struct BrowseProperties {
+pub struct WebBrowserProperties {
     #[schemars(description = "The URL of the webpage to read", required = true)]
     url: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
-pub struct Browse;
+pub struct WebBrowser;
 
-impl ToolDef for Browse {
-    const NAME: &'static str = "Browse";
+impl ToolDef for WebBrowser {
+    const NAME: &'static str = "web_browser";
     const DESCRIPTION: &'static str = "Reads and returns the contents of a webpage";
-    type Properties = BrowseProperties;
+    type Properties = WebBrowserProperties;
 
     fn def() -> Tool {
-        let input_schema = serde_json::from_str::<ToolInputSchema>(BROWSE_SCHEMA).unwrap();
+        let input_schema = serde_json::from_str::<ToolInputSchema>(WEB_BROWSER_SCHEMA).unwrap();
         Tool {
             name: Self::NAME.to_string(),
             description: Some(Self::DESCRIPTION.to_string()),
@@ -59,7 +59,7 @@ impl ToolDef for Browse {
     }
 }
 
-impl Browse {
+impl WebBrowser {
     fn error(error_message: impl Into<String>) -> CallToolResult {
         CallToolResult {
             content: vec![serde_json::to_value(TextContent {
@@ -93,9 +93,9 @@ mod tests {
     use crate::tools::ToolCallHandler;
 
     #[tokio::test]
-    async fn test_browse_tool() {
-        let tool = Browse;
-        let props = BrowseProperties {
+    async fn test_web_browser_tool() {
+        let tool = WebBrowser;
+        let props = WebBrowserProperties {
             url: "https://example.com".to_string(),
         };
 
@@ -108,9 +108,9 @@ mod tests {
     }
 
     #[test]
-    fn test_browse_schema() {
-        let tool = Browse.def();
-        assert_eq!(tool.name, "Browse");
+    fn test_web_browser_schema() {
+        let tool = WebBrowser.def();
+        assert_eq!(tool.name, "web_browser");
         assert_eq!(
             tool.description.unwrap(),
             "Reads and returns the contents of a webpage"

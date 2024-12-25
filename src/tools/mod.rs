@@ -6,10 +6,10 @@ use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
 
-pub mod browse;
 /// Modules containing tool implementations
 pub mod echo;
 pub mod memory;
+pub mod web_browser;
 
 /// Errors that can occur during tool operations
 #[derive(Debug, thiserror::Error)]
