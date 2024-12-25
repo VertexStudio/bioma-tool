@@ -25,6 +25,10 @@ pub enum ToolError {
     /// Error when serializing tool results to JSON
     #[error("Failed to serialize tool result: {0}")]
     ResultSerialize(serde_json::Error),
+
+    /// Error custom
+    #[error("Custom error: {0}")]
+    Custom(String),
 }
 
 /// Trait for handling tool calls with dynamic dispatch
