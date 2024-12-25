@@ -1,5 +1,5 @@
-use crate::schema::{self, CallToolResult, ToolInputSchema};
-use schemars::{schema_for, JsonSchema};
+use crate::schema::{self, CallToolResult};
+use schemars::JsonSchema;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -51,46 +51,13 @@ pub trait ToolCallHandler: Send + Sync {
 ///
 /// This trait provides a way to define a tool's metadata and implementation
 /// with strongly-typed arguments.
-///
-/// # JSON Schema Properties
-/// 
-/// The `schemars` crate supports standard JSON Schema attributes through the `schemars` attribute macro.
-/// See the [JSON Schema Reference](https://json-schema.org/understanding-json-schema) for full documentation.
-///
-/// Common attributes include:
-/// ```rust
-/// #[derive(JsonSchema, Serialize, Deserialize)]
-/// struct ExampleProperties {
-///     #[schemars(description = "Description of the field")]
-///     #[schemars(required = true)]
-///     basic_field: String,
-///
-///     #[schemars(minimum = 0, maximum = 100)]
-///     #[schemars(example = 42)]
-///     number_field: i32,
-///
-///     #[schemars(regex = "^[a-zA-Z]+$")]
-///     #[schemars(length(min = 1, max = 50))]
-///     string_field: String,
-///
-///     #[schemars(default = true)]
-///     optional_field: bool,
-///
-///     #[schemars(enum_values = ["one", "two", "three"])]
-///     enum_field: String,
-/// }
-/// ```
-///
-/// Additional resources:
-/// - [schemars documentation](https://docs.rs/schemars)
-/// - [JSON Schema Validation](https://json-schema.org/draft/2020-12/json-schema-validation.html)
 pub trait ToolDef: Serialize {
     /// The name of the tool
     const NAME: &'static str;
-    
+
     /// A description of what the tool does
     const DESCRIPTION: &'static str;
-    
+
     /// The type representing the tool's input properties
     type Properties: Serialize + JsonSchema + serde::de::DeserializeOwned;
 
@@ -98,93 +65,7 @@ pub trait ToolDef: Serialize {
     ///
     /// This method creates a complete tool schema including name, description,
     /// and input parameter definitions derived from the Properties type.
-    fn def() -> schema::Tool {
-        let schema = schema_for!(Self::Properties);
-        let schema_value = serde_json::to_value(schema).unwrap();
-
-        let tool_input_schema = if let Some(_discriminator) = schema_value.get("discriminator") {
-            // Handle tagged enum case
-            let variants = schema_value["oneOf"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|variant| {
-                    let properties: BTreeMap<String, BTreeMap<String, Value>> = variant["properties"]
-                        .as_object()
-                        .unwrap()
-                        .iter()
-                        .map(|(prop_name, prop_value)| {
-                            let inner_map: BTreeMap<String, Value> = prop_value
-                                .as_object()
-                                .unwrap()
-                                .iter()
-                                .map(|(k, v)| (k.clone(), v.clone()))
-                                .collect();
-                            (prop_name.clone(), inner_map)
-                        })
-                        .collect();
-
-                    let required: Option<Vec<String>> = variant["required"]
-                        .as_array()
-                        .map(|arr| {
-                            arr.iter()
-                                .filter_map(|v| v.as_str().map(String::from))
-                                .collect()
-                        });
-
-                    (properties, required)
-                })
-                .fold(
-                    (BTreeMap::new(), Vec::new()),
-                    |(mut props, mut reqs), (variant_props, variant_reqs)| {
-                        props.extend(variant_props);
-                        if let Some(variant_reqs) = variant_reqs {
-                            reqs.extend(variant_reqs);
-                        }
-                        (props, reqs)
-                    },
-                );
-
-            ToolInputSchema {
-                type_: "object".to_string(),
-                properties: Some(variants.0),
-                required: Some(variants.1),
-            }
-        } else {
-            // Original handling for regular objects
-            ToolInputSchema {
-                type_: schema_value["type"]
-                    .as_str()
-                    .unwrap_or("object")
-                    .to_string(),
-                properties: schema_value["properties"].as_object().map(|props| {
-                    props
-                        .iter()
-                        .map(|(prop_name, prop_value)| {
-                            let inner_map = prop_value
-                                .as_object()
-                                .unwrap()
-                                .iter()
-                                .map(|(k, v)| (k.clone(), v.clone()))
-                                .collect();
-                            (prop_name.clone(), inner_map)
-                        })
-                        .collect()
-                }),
-                required: schema_value["required"].as_array().map(|arr| {
-                    arr.iter()
-                        .filter_map(|v| v.as_str().map(String::from))
-                        .collect()
-                }),
-            }
-        };
-
-        schema::Tool {
-            name: Self::NAME.to_string(),
-            description: Some(Self::DESCRIPTION.to_string()),
-            input_schema: tool_input_schema,
-        }
-    }
+    fn def() -> schema::Tool;
 
     /// Executes the tool with strongly-typed properties
     ///

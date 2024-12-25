@@ -1,7 +1,18 @@
-use crate::schema::{CallToolResult, TextContent};
+use crate::schema::{CallToolResult, TextContent, Tool, ToolInputSchema};
 use crate::tools::{ToolDef, ToolError};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+pub const ECHO_SCHEMA: &str = r#"{
+    "type": "object",
+    "properties": {
+        "message": {
+            "description": "The message to echo",
+            "type": "string"
+        }
+    },
+    "required": ["message"]
+}"#;
 
 #[derive(Serialize, Deserialize, JsonSchema)]
 pub struct EchoProperties {
@@ -16,6 +27,15 @@ impl ToolDef for Echo {
     const NAME: &'static str = "echo";
     const DESCRIPTION: &'static str = "Echoes back the input message";
     type Properties = EchoProperties;
+
+    fn def() -> Tool {
+        let input_schema = serde_json::from_str::<ToolInputSchema>(ECHO_SCHEMA).unwrap();
+        Tool {
+            name: Self::NAME.to_string(),
+            description: Some(Self::DESCRIPTION.to_string()),
+            input_schema,
+        }
+    }
 
     async fn call(&self, properties: Self::Properties) -> Result<CallToolResult, ToolError> {
         Ok(CallToolResult {
