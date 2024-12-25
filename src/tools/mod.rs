@@ -6,6 +6,7 @@ use std::collections::BTreeMap;
 use std::future::Future;
 use std::pin::Pin;
 
+pub mod browse;
 /// Modules containing tool implementations
 pub mod echo;
 pub mod memory;

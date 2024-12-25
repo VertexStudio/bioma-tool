@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use futures::{SinkExt, StreamExt};
-use tracing::{debug, error};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -10,6 +9,7 @@ use tokio::{
     sync::{mpsc, Mutex},
 };
 use tokio_tungstenite::{accept_async, tungstenite::Message, WebSocketStream};
+use tracing::{debug, error};
 
 pub trait Transport {
     fn start(

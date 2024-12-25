@@ -64,7 +64,11 @@ impl McpServer {
         };
 
         Self {
-            tools: vec![Box::new(tools::echo::Echo), Box::new(tools::memory::Memory)],
+            tools: vec![
+                Box::new(tools::echo::Echo),
+                Box::new(tools::memory::Memory),
+                Box::new(tools::browse::Browse),
+            ],
             resources: vec![example_resource],
             prompts: vec![example_prompt],
         }
@@ -112,7 +116,7 @@ fn setup_logging(log_path: PathBuf) -> Result<()> {
         .with_thread_ids(true)
         .with_file(true)
         .with_line_number(true)
-        .with_ansi(false)  // Disable ANSI color codes
+        .with_ansi(false) // Disable ANSI color codes
         .with_span_events(FmtSpan::CLOSE)
         .with_writer(file_appender)
         .with_max_level(Level::DEBUG)

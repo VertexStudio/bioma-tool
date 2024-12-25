@@ -82,18 +82,18 @@ impl ToolDef for Memory {
         let store_result = MEMORY_STORE.lock();
         let mut store = match store_result {
             Ok(store) => store,
-            Err(e) => return Ok(CallToolResult::error(e.to_string())),
+            Err(e) => return Ok(Self::error(e.to_string())),
         };
 
         let result = match properties.action {
             MemoryAction::Store => {
                 let key = match properties.key {
                     Some(k) => k,
-                    None => return Ok(CallToolResult::error("Key is required for store action")),
+                    None => return Ok(Self::error("Key is required for store action")),
                 };
                 let value = match properties.value {
                     Some(v) => v,
-                    None => return Ok(CallToolResult::error("Value is required for store action")),
+                    None => return Ok(Self::error("Value is required for store action")),
                 };
                 store.insert(key.clone(), value);
                 format!("Successfully stored memory with key: {}", key)
@@ -101,9 +101,7 @@ impl ToolDef for Memory {
             MemoryAction::Retrieve => {
                 let key = match properties.key {
                     Some(k) => k,
-                    None => {
-                        return Ok(CallToolResult::error("Key is required for retrieve action"))
-                    }
+                    None => return Ok(Self::error("Key is required for retrieve action")),
                 };
                 match store.get(&key) {
                     Some(value) => serde_json::to_string_pretty(value)
@@ -115,18 +113,13 @@ impl ToolDef for Memory {
                 let keys: Vec<&String> = store.keys().collect();
                 match serde_json::to_string_pretty(&keys) {
                     Ok(json_str) => json_str,
-                    Err(e) => {
-                        return Ok(CallToolResult::error(format!(
-                            "Failed to serialize keys: {}",
-                            e
-                        )))
-                    }
+                    Err(e) => return Ok(Self::error(format!("Failed to serialize keys: {}", e))),
                 }
             }
             MemoryAction::Delete => {
                 let key = match properties.key {
                     Some(k) => k,
-                    None => return Ok(CallToolResult::error("Key is required for delete action")),
+                    None => return Ok(Self::error("Key is required for delete action")),
                 };
                 match store.remove(&key) {
                     Some(_) => format!("Successfully deleted memory with key: {}", key),
@@ -139,13 +132,13 @@ impl ToolDef for Memory {
             }
         };
 
-        Ok(CallToolResult::success(result))
+        Ok(Self::success(result))
     }
 }
 
-impl CallToolResult {
-    fn error(error_message: impl Into<String>) -> Self {
-        Self {
+impl Memory {
+    fn error(error_message: impl Into<String>) -> CallToolResult {
+        CallToolResult {
             content: vec![serde_json::to_value(TextContent {
                 type_: "text".to_string(),
                 text: error_message.into(),
@@ -157,8 +150,8 @@ impl CallToolResult {
         }
     }
 
-    fn success(message: impl Into<String>) -> Self {
-        Self {
+    fn success(message: impl Into<String>) -> CallToolResult {
+        CallToolResult {
             content: vec![serde_json::to_value(TextContent {
                 type_: "text".to_string(),
                 text: message.into(),
