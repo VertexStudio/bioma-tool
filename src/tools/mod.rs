@@ -8,8 +8,8 @@ use std::pin::Pin;
 
 /// Modules containing tool implementations
 pub mod echo;
+pub mod fetch;
 pub mod memory;
-pub mod web_browser;
 
 /// Errors that can occur during tool operations
 #[derive(Debug, thiserror::Error)]

@@ -67,7 +67,7 @@ impl McpServer {
             tools: vec![
                 Box::new(tools::echo::Echo),
                 Box::new(tools::memory::Memory),
-                Box::new(tools::web_browser::WebBrowser),
+                Box::new(tools::fetch::Fetch),
             ],
             resources: vec![example_resource],
             prompts: vec![example_prompt],
